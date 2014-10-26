@@ -1,0 +1,61 @@
+
+
+#Practical Machine Learning Course Project
+
+##Backgroud
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+The goal of this project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. 
+
+
+#### 1. First we load raw data and machine learning package into R
+```{r}
+library(caret)
+
+pml_train<-read.csv("pml-training.csv")
+
+pml_test<-read.csv("pml-testing.csv")
+
+```
+
+#### 2. Second we do the preprocessing to select the most relevant variables for prediction, e.g., remove the variables with large number of NA values.
+
+```{r}
+pml_test_p1<-pml_test[,-grep("amplitude|var|avg|max|min|skewness|kurtosis|stddev",names(pml_test))]
+pml_train_p1<-pml_train[,-grep("amplitude|var|avg|max|min|skewness|kurtosis|stddev",names(pml_train))]
+pml_train_p2<-pml_train_p1[,8:60]
+pml_test_p2<-pml_test_p1[,8:60]
+
+```
+
+#### 3. Then we further split the training data for cross validation, for simplicity, we use k-fold strategy and set k=2.
+
+```{r}
+inTrain<-createDataPartition(y=pml_train_p2$classe,,p=0.5,list=FALSE)
+pml_train_crosp2<-pml_train_p2[inTrain,]
+pml_test_crosp2<-pml_train_p2[-inTrain,]
+```
+
+#### 4. And we fit the model with decision tree as normally they are good at class prediction.
+
+```{r}
+ modfit_tree_crosp2<-train(classe~.,method="rpart",data=pml_train_crosp2)
+```
+
+#### 5. Then we estimate the out of sample error through cross validation data and predict the activity type with real test data.
+
+```{r}
+pred_train_crosp2<-predict(modfit_tree_crosp2,pml_test_crosp2)
+table(pml_test_crosp2[,53],pred_train_crosp2)
+out_of_sample_error<-round(sum(diag(table(pml_test_crosp2[,53],pred_train_crosp2)/dim(pml_test_crosp2)[1])),1)
+```
+
+##### According the the confusion matrix above, the estimated out of sample error is `r out_of_sample_error`. We can see the model is good at predicting class A, C and E, but not so good for B and D.
+
+#### 6. Finally we predict the activity type with the real test data.
+
+```{r}
+pred_test_crosp2<-predict(modfit_tree_crosp2,pml_test_p2)
+pred_test_crosp2
+```
